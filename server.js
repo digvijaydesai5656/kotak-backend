@@ -89,6 +89,29 @@ app.post('/api/kotak-validate', async (req, res) => {
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+// Step 3: Fetch Scrip Master CSV download links
+app.get('/api/kotak/scrip-files', async (req, res) => {
+    try {
+        const response = await axios.get(
+            'https://mis.kotaksecurities.com/script-details/1.0/masterscrip/file-paths',
+            {
+                headers: {
+                    'Authorization': process.env.KOTAK_ACCESS_TOKEN
+                }
+            }
+        );
+
+        return res.status(200).json(response.data);
+    } catch (error) {
+        if (error.response) {
+            console.error('Masterscrip API Error:', error.response.data);
+            return res.status(error.response.status).json(error.response.data);
+        }
+        
+        console.error('Server Error:', error.message);
+        return res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Backend server running on http://localhost:${PORT}`);
