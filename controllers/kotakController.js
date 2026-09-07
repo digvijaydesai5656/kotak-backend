@@ -18,8 +18,7 @@ exports.login = async (req, res, next) => {
       {
         headers: {
           'Authorization': process.env.KOTAK_ACCESS_TOKEN,
-          'neo-fin-key': 'neotradeapi',
-          'Content-Type': 'application/json'
+          'neo-fin-key': 'neotradeapi'
         }
       }
     );
@@ -49,8 +48,7 @@ exports.validate = async (req, res, next) => {
           'Authorization': process.env.KOTAK_ACCESS_TOKEN,
           'neo-fin-key': 'neotradeapi',
           'sid': sid,
-          'Auth': token,
-          'Content-Type': 'application/json'
+          'Auth': token
         }
       }
     );
