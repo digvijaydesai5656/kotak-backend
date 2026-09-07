@@ -76,3 +76,35 @@ exports.getScripFiles = async (req, res, next) => {
         next(error);
     }
 };
+
+exports.placeOrder = async (req, res, next) => {
+  const { sid, token, baseUrl, ...orderData } = req.body;
+
+  if (!sid || !token || !baseUrl) {
+    return res.status(400).json({ error: 'Missing sid, token, or baseUrl in request body.' });
+  }
+
+  try {
+    const jData = JSON.stringify(orderData);
+    const formData = new URLSearchParams();
+    formData.append('jData', jData);
+
+    const kotakResponse = await axios.post(
+      `${baseUrl}/quick/order/rule/ms/place`,
+      formData,
+      {
+        headers: {
+          'accept': 'application/json',
+          'Sid': sid,
+          'Auth': token,
+          'neo-fin-key': 'neotradeapi',
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      }
+    );
+
+    return res.status(kotakResponse.status).json(kotakResponse.data);
+  } catch (error) {
+    next(error);
+  }
+};

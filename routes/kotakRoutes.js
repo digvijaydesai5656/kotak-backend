@@ -11,4 +11,7 @@ router.post('/kotak-validate', kotakController.validate);
 // Fetch Scrip Master CSV download links
 router.get('/kotak/scrip-files', kotakController.getScripFiles);
 
+// Place order
+router.post('/kotak-place-order', kotakController.placeOrder);
+
 module.exports = router;
