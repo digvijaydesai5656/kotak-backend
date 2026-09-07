@@ -1,16 +1,33 @@
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 require('dotenv').config();
+
+// Ensure critical environment variables are loaded
+if (!process.env.KOTAK_ACCESS_TOKEN) {
+  console.error("FATAL ERROR: KOTAK_ACCESS_TOKEN is not defined in environment variables.");
+  process.exit(1);
+}
 
 const app = express();
 
 // Middleware
-app.use(cors()); // Allows requests from React app
+const allowedOrigin = process.env.FRONTEND_URL || 'http://localhost:5173';
+app.use(cors({
+  origin: allowedOrigin
+}));
 app.use(express.json());
 
+// Rate Limiter
+const apiLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 10, // limit each IP to 10 requests per windowMs
+  message: { error: 'Too many requests from this IP, please try again after a minute.' }
+});
+
 // Kotak Login Route
-app.post('/api/kotak-login', async (req, res) => {
+app.post('/api/kotak-login', apiLimiter, async (req, res, next) => {
   const { mobileNumber, ucc, totp } = req.body;
 
   // Basic validation
@@ -39,19 +56,12 @@ app.post('/api/kotak-login', async (req, res) => {
     return res.status(kotakResponse.status).json(kotakResponse.data);
 
   } catch (error) {
-    // Forward error from Kotak API if available
-    if (error.response) {
-      console.error('Kotak API Error:', error.response.data);
-      return res.status(error.response.status).json(error.response.data);
-    }
-
-    console.error('Server Error:', error.message);
-    return res.status(500).json({ error: 'Internal Server Error' });
+    next(error);
   }
 });
 
 // Step 2B: Validate MPIN
-app.post('/api/kotak-validate', async (req, res) => {
+app.post('/api/kotak-validate', apiLimiter, async (req, res, next) => {
   const { mpin, sid, token } = req.body;
 
   // Basic validation
@@ -80,17 +90,12 @@ app.post('/api/kotak-validate', async (req, res) => {
     return res.status(kotakResponse.status).json(kotakResponse.data);
 
   } catch (error) {
-    if (error.response) {
-      console.error('Kotak Validation Error:', error.response.data);
-      return res.status(error.response.status).json(error.response.data);
-    }
-
-    console.error('Server Error:', error.message);
-    return res.status(500).json({ error: 'Internal Server Error' });
+    next(error);
   }
 });
+
 // Step 3: Fetch Scrip Master CSV download links
-app.get('/api/kotak/scrip-files', async (req, res) => {
+app.get('/api/kotak/scrip-files', async (req, res, next) => {
     try {
         const response = await axios.get(
             'https://mis.kotaksecurities.com/script-details/1.0/masterscrip/file-paths',
@@ -103,15 +108,21 @@ app.get('/api/kotak/scrip-files', async (req, res) => {
 
         return res.status(200).json(response.data);
     } catch (error) {
-        if (error.response) {
-            console.error('Masterscrip API Error:', error.response.data);
-            return res.status(error.response.status).json(error.response.data);
-        }
-        
-        console.error('Server Error:', error.message);
-        return res.status(500).json({ error: 'Internal Server Error' });
+        next(error);
     }
 });
+
+// Global Error Handling Middleware
+app.use((error, req, res, next) => {
+  if (error.response) {
+    console.error('Kotak API Error:', error.response.data);
+    return res.status(error.response.status).json(error.response.data);
+  }
+
+  console.error('Server Error:', error.message);
+  return res.status(500).json({ error: 'Internal Server Error' });
+});
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Backend server running on http://localhost:${PORT}`);
